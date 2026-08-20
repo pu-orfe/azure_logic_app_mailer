@@ -3,6 +3,7 @@
 namespace Drupal\Tests\azure_logic_app_mailer\Unit;
 
 use Drupal\Core\DependencyInjection\ContainerBuilder;
+use Drupal\Core\File\FileExists;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
@@ -94,7 +95,7 @@ class LogicAppMailerTest extends TestCase {
       ->with(
         $this->stringContains('To: user@example.com'),
         $this->stringContains('temporary://drupal-mails/mail-'),
-        FileSystemInterface::EXISTS_REPLACE
+        FileExists::Replace
       )
       ->willReturn('/tmp/mail-123.txt');
 

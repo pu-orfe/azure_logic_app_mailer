@@ -45,7 +45,7 @@ class LogicAppMailer implements MailInterface, ContainerFactoryPluginInterface {
       if (\Drupal::service('file_system')->prepareDirectory($dir, \Drupal\Core\File\FileSystemInterface::CREATE_DIRECTORY)) {
         $filename = $dir . '/mail-' . time() . '-' . uniqid() . '.txt';
         $content = "To: " . $message['to'] . "\nSubject: " . $message['subject'] . "\n\n" . $body;
-        \Drupal::service('file_system')->saveData($content, $filename, \Drupal\Core\File\FileSystemInterface::EXISTS_REPLACE);
+        \Drupal::service('file_system')->saveData($content, $filename, \Drupal\Core\File\FileExists::Replace);
       }
       return TRUE;
     }
