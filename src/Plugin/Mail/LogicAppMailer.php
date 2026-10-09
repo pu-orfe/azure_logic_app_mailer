@@ -2,19 +2,20 @@
 
 namespace Drupal\azure_logic_app_mailer\Plugin\Mail;
 
+use Drupal\Core\Mail\Attribute\Mail;
 use Drupal\Core\Mail\MailInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use GuzzleHttp\ClientInterface;
 
 /**
  * Provides a Drupal Mail plugin for Azure Logic Apps.
- *
- * @Mail(
- *   id = "logic_app_mailer",
- *   label = @Translation("Azure Logic App Mailer")
- * )
  */
+#[Mail(
+  id: 'logic_app_mailer',
+  label: new TranslatableMarkup('Azure Logic App Mailer'),
+)]
 class LogicAppMailer implements MailInterface, ContainerFactoryPluginInterface {
 
   public function __construct(protected ClientInterface $httpClient) {}

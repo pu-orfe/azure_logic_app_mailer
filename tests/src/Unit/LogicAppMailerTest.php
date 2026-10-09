@@ -9,13 +9,13 @@ use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\azure_logic_app_mailer\Plugin\Mail\LogicAppMailer;
 use GuzzleHttp\ClientInterface;
-use Psr\Http\Message\ResponseInterface;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ResponseInterface;
 
-/**
- * @coversDefaultClass \Drupal\azure_logic_app_mailer\Plugin\Mail\LogicAppMailer
- * @group azure_logic_app_mailer
- */
+#[CoversClass(LogicAppMailer::class)]
+#[Group('azure_logic_app_mailer')]
 class LogicAppMailerTest extends TestCase {
 
   /**
