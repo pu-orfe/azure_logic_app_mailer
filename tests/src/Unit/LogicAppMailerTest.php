@@ -193,4 +193,79 @@ class LogicAppMailerTest extends TestCase {
     $this->assertFalse($result);
   }
 
+  /**
+   * A mailer whose Managed Identity token is stubbed, posting to the client.
+   */
+  protected function productionMailer(): LogicAppMailer {
+    putenv('IS_LOCAL_DEV=false');
+    putenv('AZURE_LOGIC_APP_MAIL_URL=https://logic-app-endpoint.azure.com');
+    $mailer = $this->getMockBuilder(LogicAppMailer::class)
+      ->setConstructorArgs([$this->httpClient])
+      ->onlyMethods(['getManagedIdentityToken'])
+      ->getMock();
+    $mailer->method('getManagedIdentityToken')->willReturn('mock-token');
+    return $mailer;
+  }
+
+  /**
+   * Cc and Bcc headers reach the Logic App as cc and bcc, whatever their case.
+   */
+  public function testCcAndBccHeadersAreForwarded() {
+    $response = $this->createMock(ResponseInterface::class);
+    $response->method('getStatusCode')->willReturn(202);
+    $sent = [];
+    $this->httpClient->expects($this->exactly(2))
+      ->method('post')
+      ->willReturnCallback(function ($url, $options) use ($response, &$sent) {
+        $sent[] = $options['json'];
+        return $response;
+      });
+    $mailer = $this->productionMailer();
+    $this->assertTrue($mailer->mail(['to' => 'to@example.com', 'subject' => 'S', 'body' => ['B'], 'headers' => ['Cc' => 'cc@example.com', 'Bcc' => 'debug@example.com']]));
+    $this->assertTrue($mailer->mail(['to' => 'to@example.com', 'subject' => 'S', 'body' => ['B'], 'headers' => ['cc' => 'lower@example.com', 'BCC' => 'upper@example.com']]));
+    $this->assertSame('cc@example.com', $sent[0]['cc']);
+    $this->assertSame('debug@example.com', $sent[0]['bcc']);
+    $this->assertSame('lower@example.com', $sent[1]['cc']);
+    $this->assertSame('upper@example.com', $sent[1]['bcc']);
+  }
+
+  /**
+   * Without Cc or Bcc (or with empty ones), the payload carries neither key.
+   */
+  public function testNoCcOrBccMeansNoKeys() {
+    $response = $this->createMock(ResponseInterface::class);
+    $response->method('getStatusCode')->willReturn(202);
+    $sent = [];
+    $this->httpClient->expects($this->exactly(2))
+      ->method('post')
+      ->willReturnCallback(function ($url, $options) use ($response, &$sent) {
+        $sent[] = $options['json'];
+        return $response;
+      });
+    $mailer = $this->productionMailer();
+    $mailer->mail(['to' => 'to@example.com', 'subject' => 'S', 'body' => 'B']);
+    $mailer->mail(['to' => 'to@example.com', 'subject' => 'S', 'body' => 'B', 'headers' => ['Cc' => '', 'Bcc' => '  ', 'Content-Type' => 'text/html']]);
+    foreach ($sent as $json) {
+      $this->assertSame(['to', 'subject', 'body'], array_keys($json));
+    }
+  }
+
+  /**
+   * The local-development mail file shows Cc and Bcc too.
+   */
+  public function testLocalMailFileShowsCcAndBcc() {
+    putenv('IS_LOCAL_DEV=true');
+    $this->fileSystem->method('prepareDirectory')->willReturn(TRUE);
+    $this->fileSystem->expects($this->once())
+      ->method('saveData')
+      ->with(
+        $this->logicalAnd($this->stringContains("To: user@example.com\nCc: cc@example.com\nBcc: debug@example.com\nSubject: S"), $this->logicalNot($this->stringContains('Content-Type'))),
+        $this->anything(),
+        FileExists::Replace
+      )
+      ->willReturn('/tmp/mail.txt');
+    $mailer = new LogicAppMailer($this->httpClient);
+    $this->assertTrue($mailer->mail(['to' => 'user@example.com', 'subject' => 'S', 'body' => 'B', 'headers' => ['Cc' => 'cc@example.com', 'Bcc' => 'debug@example.com', 'Content-Type' => 'text/html']]));
+  }
+
 }

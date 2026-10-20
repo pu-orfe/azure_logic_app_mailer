@@ -24,6 +24,26 @@ class LogicAppMailer implements MailInterface, ContainerFactoryPluginInterface {
     return new static($container->get('http_client'));
   }
 
+  /**
+   * The message's Cc and Bcc headers, as the payload's cc and bcc.
+   *
+   * Header names are matched without regard to case; empty values are left
+   * out.
+   *
+   * @return array<string, string>
+   *   'cc' and/or 'bcc' => the address list as given.
+   */
+  public static function copyRecipients(array $message): array {
+    $copies = [];
+    foreach ($message['headers'] ?? [] as $name => $value) {
+      $field = strtolower((string) $name);
+      if (in_array($field, ['cc', 'bcc'], TRUE) && is_string($value) && trim($value) !== '') {
+        $copies[$field] = trim($value);
+      }
+    }
+    return $copies;
+  }
+
   public function format(array $message) {
     return $message;
   }
@@ -45,7 +65,11 @@ class LogicAppMailer implements MailInterface, ContainerFactoryPluginInterface {
       $dir = 'temporary://drupal-mails';
       if (\Drupal::service('file_system')->prepareDirectory($dir, \Drupal\Core\File\FileSystemInterface::CREATE_DIRECTORY)) {
         $filename = $dir . '/mail-' . time() . '-' . uniqid() . '.txt';
-        $content = "To: " . $message['to'] . "\nSubject: " . $message['subject'] . "\n\n" . $body;
+        $copies = '';
+        foreach (self::copyRecipients($message) as $field => $address) {
+          $copies .= ucfirst($field) . ': ' . $address . "\n";
+        }
+        $content = "To: " . $message['to'] . "\n" . $copies . "Subject: " . $message['subject'] . "\n\n" . $body;
         \Drupal::service('file_system')->saveData($content, $filename, \Drupal\Core\File\FileExists::Replace);
       }
       return TRUE;
@@ -64,11 +88,13 @@ class LogicAppMailer implements MailInterface, ContainerFactoryPluginInterface {
           'Authorization' => 'Bearer ' . $token,
           'Content-Type' => 'application/json',
         ],
+        // cc and bcc only when set: the Logic App's Send an email action takes
+        // them as optional Cc and Bcc fields.
         'json' => [
           'to' => $message['to'],
           'subject' => $message['subject'],
           'body' => $body,
-        ],
+        ] + self::copyRecipients($message),
         'timeout' => 5.0,
       ]);
 
